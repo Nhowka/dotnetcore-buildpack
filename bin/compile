@@ -40,6 +40,8 @@ dotnet tool install fake-cli -g
 
 cd $BUILD_DIR
 
+fake build
+
 cat << EOT >> ${BUILD_DIR}/Procfile
 web: cd \$HOME/heroku_output && ../.heroku/dotnet/dotnet App.dll
 EOT
