@@ -38,6 +38,8 @@ export PATH="${BUILD_DIR}/.heroku/dotnet:${PATH}"
 echo "Installing fake"
 dotnet tool install fake-cli -g
 
+export PATH="$PATH:/app/.dotnet/tools"
+
 cd $BUILD_DIR
 
 fake build
