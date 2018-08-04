@@ -35,7 +35,7 @@ echo "Installing dotnet"
 
 install_dotnet $BUILD_DIR $CACHE_DIR
 
-export PATH="${BUILD_DIR}/.heroku/dotnet:${BUILD_DIR}/.dotnet/tools:${PATH}"
+export PATH="${BUILD_DIR}/.heroku/dotnet:${HOME}/.dotnet/tools:${PATH}"
 
 echo "Installing fake"
 dotnet tool install fake-cli -g
