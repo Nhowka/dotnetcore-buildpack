@@ -21,6 +21,7 @@ BP_DIR=$(cd $(dirname ${0:-}); cd ..; pwd)
 
 MONO3_VM_BINARY="https://github.com/SuaveIO/mono-builder/releases/download/0.0.9/mono-4.4.2.11.tar.gz"
 NUGET_BINARY="https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+PAKET_BINARY="https://github.com/fsprojects/Paket/releases/download/5.194.3/paket.exe"
 
 NUGET="${BUILD_DIR}/vendor/mono/bin/nuget.exe"
 MOZROOT="${BUILD_DIR}/vendor/mono/lib/mono/4.5/mozroots.exe"
@@ -46,6 +47,9 @@ if [ ! -d ${CACHE_DIR}/$STACK/vendor/mono ]; then
     mkdir -p ${CACHE_DIR}/$STACK/vendor
     curl -L $MONO3_VM_BINARY -s | tar zxf - -C ${CACHE_DIR}/$STACK/vendor
     curl $NUGET_BINARY -L -o "${CACHE_DIR}/$STACK/vendor/mono/bin/nuget.exe"
+    curl $PAKET_BINARY -L -o "${CACHE_DIR}/$STACK/vendor/mono/bin/paket.exe"
+    curl $PAKET_BINARY -L -o "${BUILD_DIR}/.paket/paket.exe"
+    
 fi
 
 mkdir -p ${BUILD_DIR}/vendor
@@ -66,7 +70,8 @@ echo "-----> Setting envvars"
 export PATH="/app/mono/bin:$PATH"
 export LD_LIBRARY_PATH="/app/mono/lib:$LD_LIBRARY_PATH"
 echo "-----> Importing trusted root certificates"
-cert-sync --quiet --user /etc/ssl/certs/ca-certificates.crt
+cert-sync --quiet /etc/ssl/certs/ca-certificates.crt
+
 
 # cp -r ~/.config ${BUILD_DIR}/.
 
@@ -82,6 +87,8 @@ export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=${DOTNET_SKIP_FIRST_TIME_EXPERIENCE:-1}
 export DOTNET_CLI_TELEMETRY_OPTOUT=${DOTNET_CLI_TELEMETRY_OPTOUT:-1}
 export NUGET_PACKAGES="${CACHE_DIR}/nuget/cache"
 export DOTNET_ROOT="${BUILD_DIR}/.heroku/dotnet"
+
+mono MOZROOT --quiet /etc/ssl/certs/ca-certificates.crt
 
 echo "Installing dotnet"
 
