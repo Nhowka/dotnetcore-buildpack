@@ -88,7 +88,7 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=${DOTNET_CLI_TELEMETRY_OPTOUT:-1}
 export NUGET_PACKAGES="${CACHE_DIR}/nuget/cache"
 export DOTNET_ROOT="${BUILD_DIR}/.heroku/dotnet"
 
-mono MOZROOT --quiet /etc/ssl/certs/ca-certificates.crt
+mono $MOZROOT --import --quiet
 
 echo "Installing dotnet"
 
