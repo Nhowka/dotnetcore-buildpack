@@ -4,7 +4,6 @@
 ### Configure environment
 set -o errexit    # always exit on error
 set -o pipefail   # don't ignore exit codes when piping output
-set -o nounset    # fail on unset variables
 unset GIT_DIR     # Avoid GIT_DIR leak from previous build steps
 
 if [ "$STACK" != "heroku-16" ] && [ "$STACK" != "heroku-18" ]; then
@@ -12,11 +11,69 @@ if [ "$STACK" != "heroku-16" ] && [ "$STACK" != "heroku-18" ]; then
 	exit 1
 fi
 
+
+
 ### Configure directories
 BUILD_DIR=${1:-}
 CACHE_DIR=${2:-}
 ENV_DIR=${3:-}
 BP_DIR=$(cd $(dirname ${0:-}); cd ..; pwd)
+
+MONO3_VM_BINARY="https://github.com/SuaveIO/mono-builder/releases/download/0.0.9/mono-4.4.2.11.tar.gz"
+NUGET_BINARY="https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+PAKET_BINARY="https://github.com/fsprojects/Paket/releases/download/5.194.3/paket.exe"
+
+NUGET="${BUILD_DIR}/vendor/mono/bin/nuget.exe"
+MOZROOT="${BUILD_DIR}/vendor/mono/lib/mono/4.5/mozroots.exe"
+XBUILD="${BUILD_DIR}/vendor/mono/lib/mono/4.5/xbuild.exe"
+
+export_env_dir() {
+  env_dir=$1
+  whitelist_regex=${2:-''}
+  blacklist_regex=${3:-'^(PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH)$'}
+  if [ -d "$env_dir" ]; then
+    for e in $(ls $env_dir); do
+      echo "$e" | grep -E "$whitelist_regex" | grep -qvE "$blacklist_regex" &&
+      export "$e=$(cat $env_dir/$e)"
+      :
+    done
+  fi
+}
+
+export_env_dir $ENV_DIR
+
+echo "-----> Downloading mono to ${CACHE_DIR}/$STACK/vendor"
+if [ ! -d ${CACHE_DIR}/$STACK/vendor/mono ]; then
+    mkdir -p ${CACHE_DIR}/$STACK/vendor
+    curl -L $MONO3_VM_BINARY -s | tar zxf - -C ${CACHE_DIR}/$STACK/vendor
+    curl $NUGET_BINARY -L -o "${CACHE_DIR}/$STACK/vendor/mono/bin/nuget.exe"
+    curl $PAKET_BINARY -L -o "${CACHE_DIR}/$STACK/vendor/mono/bin/paket.exe"
+    curl $PAKET_BINARY -L -o "${BUILD_DIR}/.paket/paket.exe"
+    
+fi
+
+mkdir -p ${BUILD_DIR}/vendor
+
+echo "-----> Copying ${CACHE_DIR}/$STACK/vendor/mono to ${BUILD_DIR}/vendor"
+cp -pr "${CACHE_DIR}/$STACK/vendor/mono" "${BUILD_DIR}/vendor/"
+
+rm -fr /app/vendor/mono
+
+# Mono expects to be running out of /app
+echo "-----> Linking ${BUILD_DIR}/vendor/mono --> /app"
+ln -s "${BUILD_DIR}/vendor/mono" /app
+
+cp -p /app/mono/bin/fsharpc /app/mono/bin/fsharpc-heroku
+cp -p /app/mono/bin/fsharpi /app/mono/bin/fsharpi-heroku
+
+echo "-----> Setting envvars"
+export PATH="/app/mono/bin:$PATH"
+export LD_LIBRARY_PATH="/app/mono/lib:$LD_LIBRARY_PATH"
+echo "-----> Importing trusted root certificates"
+cert-sync --quiet /etc/ssl/certs/ca-certificates.crt
+
+
+# cp -r ~/.config ${BUILD_DIR}/.
 
 mkdir -p $BUILD_DIR/.profile.d
 cp $BP_DIR/profile/* $BUILD_DIR/.profile.d/
@@ -30,6 +87,8 @@ export DOTNET_SKIP_FIRST_TIME_EXPERIENCE=${DOTNET_SKIP_FIRST_TIME_EXPERIENCE:-1}
 export DOTNET_CLI_TELEMETRY_OPTOUT=${DOTNET_CLI_TELEMETRY_OPTOUT:-1}
 export NUGET_PACKAGES="${CACHE_DIR}/nuget/cache"
 export DOTNET_ROOT="${BUILD_DIR}/.heroku/dotnet"
+
+# yes "yes" | mono $MOZROOT --import --quiet > /dev/null
 
 echo "Installing dotnet"
 
